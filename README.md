@@ -224,13 +224,13 @@ What is AgentOps (RAG + Vector DB) team working on in Sprint 8 in RHAIENG in Jir
 
 ---
 
-### Cleanup (after demo)
+### Reset (after demo or before re-run)
 
 ```bash
-openshell sandbox delete opencode-demo
+./reset-demo.sh
 ```
 
-Leave the cluster infrastructure running for re-runs.
+Deletes the sandbox and clears all MLflow traces, leaving infrastructure intact for the next run.
 
 ---
 
@@ -243,6 +243,7 @@ See [docs/troubleshooting.md](docs/troubleshooting.md).
 ```
 ├── README.md                  # This file (demo runbook)
 ├── create-sandbox.sh          # Creates sandbox from .env (bash, fish-safe)
+├── reset-demo.sh              # Deletes sandbox + clears MLflow traces
 ├── .env.example               # Template for credentials (committed)
 ├── .env                       # Your credentials (gitignored)
 ├── config/
