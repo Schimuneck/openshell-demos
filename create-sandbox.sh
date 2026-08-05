@@ -19,5 +19,5 @@ openshell sandbox create \
   "${ENV_FLAGS[@]}" \
   --env "MLFLOW_TRACKING_URI=https://$MLFLOW_ROUTE" \
   --env "MLFLOW_TRACKING_TOKEN=$OC_TOKEN" \
-  --upload "$SCRIPT_DIR/config/opencode.json:/sandbox/opencode.json" \
-  --upload "$HOME/.config/gcloud/application_default_credentials.json:/sandbox/.gcloud/adc.json"
+  --upload "$SCRIPT_DIR/config/opencode.json":/sandbox/opencode.json \
+  --upload "$HOME/.config/gcloud/application_default_credentials.json":/sandbox/.gcloud/adc.json
