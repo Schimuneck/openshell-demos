@@ -127,7 +127,7 @@ Wait for `Ready`. Confirm with `openshell sandbox list`.
 **Terminal 1:**
 
 ```bash
-openshell pol set --policy policies/act2-vertex.yaml opencode-demo
+openshell pol set --policy policies/act2-vertex.yaml opencode-demo --wait
 ```
 
 Point out the `binaries` field: only the OpenCode binary gets network access. Not curl, not wget, not any other process.
@@ -175,7 +175,7 @@ What is AgentOps (RAG + Vector DB) team working on in Sprint 8 in RHAIENG in Jir
 **Terminal 1:**
 
 ```bash
-openshell pol set --policy policies/act4-jira.yaml opencode-demo
+openshell pol set --policy policies/act4-jira.yaml opencode-demo --wait
 ```
 
 Point out the diff: we added `jira` scoped to the Python binary, and `pypi` so uv can install mcp-atlassian. Node.js still can't reach Jira. Python can't reach Vertex AI.
@@ -200,7 +200,7 @@ What is AgentOps (RAG + Vector DB) team working on in Sprint 8 in RHAIENG in Jir
 
 ```bash
 # Add MLflow network access
-openshell pol set --policy policies/act5-mlflow.yaml opencode-demo
+openshell pol set --policy policies/act5-mlflow.yaml opencode-demo --wait
 
 # Upload and extract MLflow plugin
 openshell sandbox upload opencode-demo /tmp/mlflow-node-modules.tar.gz /sandbox/
