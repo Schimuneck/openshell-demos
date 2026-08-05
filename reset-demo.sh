@@ -19,25 +19,25 @@ openshell sandbox delete opencode-demo 2>/dev/null && echo "Sandbox deleted" || 
 echo ""
 echo "=== Cleaning MLflow traces ==="
 
-# Delete the experiment (removes all traces)
-curl -sk "$MLFLOW_API/api/2.0/mlflow/experiments/delete" \
+# Fetch all trace request IDs
+TRACE_IDS=$(curl -sk "$MLFLOW_API/api/2.0/mlflow/traces?experiment_ids=$EXPERIMENT_ID&max_results=100" \
   -H "Authorization: Bearer $OC_TOKEN" \
   -H "X-MLflow-Workspace: default" \
-  -H "Content-Type: application/json" \
-  -d "{\"experiment_id\":\"$EXPERIMENT_ID\"}" > /dev/null 2>&1
+  | python3 -c "import json,sys; [print(t['request_id']) for t in json.load(sys.stdin).get('traces',[])]" 2>/dev/null)
 
-# Restore it empty
-curl -sk "$MLFLOW_API/api/2.0/mlflow/experiments/restore" \
-  -H "Authorization: Bearer $OC_TOKEN" \
-  -H "X-MLflow-Workspace: default" \
-  -H "Content-Type: application/json" \
-  -d "{\"experiment_id\":\"$EXPERIMENT_ID\"}" > /dev/null 2>&1
-
-# Verify
-TRACE_COUNT=$(curl -sk "$MLFLOW_API/api/2.0/mlflow/traces?experiment_ids=$EXPERIMENT_ID&max_results=100" \
-  -H "Authorization: Bearer $OC_TOKEN" \
-  -H "X-MLflow-Workspace: default" | python3 -c "import json,sys; print(len(json.load(sys.stdin).get('traces',[])))" 2>/dev/null || echo "?")
-echo "Traces remaining: $TRACE_COUNT"
+if [ -n "$TRACE_IDS" ]; then
+  # Build JSON array of request IDs
+  IDS_JSON=$(echo "$TRACE_IDS" | python3 -c "import sys,json; print(json.dumps([l.strip() for l in sys.stdin if l.strip()]))")
+  DELETED=$(curl -sk "$MLFLOW_API/api/2.0/mlflow/traces/delete-traces" \
+    -H "Authorization: Bearer $OC_TOKEN" \
+    -H "X-MLflow-Workspace: default" \
+    -H "Content-Type: application/json" \
+    -d "{\"experiment_id\":\"$EXPERIMENT_ID\",\"request_ids\":$IDS_JSON}" \
+    | python3 -c "import json,sys; print(json.load(sys.stdin).get('traces_deleted',0))" 2>/dev/null)
+  echo "Deleted $DELETED traces"
+else
+  echo "No traces to delete"
+fi
 
 echo ""
 echo "=== Infrastructure check ==="

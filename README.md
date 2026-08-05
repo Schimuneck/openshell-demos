@@ -124,13 +124,18 @@ openshell sandbox create \
   --env MLFLOW_EXPERIMENT_ID=3 \
   --env MLFLOW_WORKSPACE=default \
   --env MLFLOW_TRACKING_INSECURE_TLS=true \
-  --upload (pwd)/config/opencode.json:/sandbox/opencode.json \
   --upload ~/.config/gcloud/application_default_credentials.json:/sandbox/.gcloud/adc.json
+```
+
+Wait for `Ready`. Then upload the OpenCode config (separate step — the `--upload` flag mishandles JSON files as destinations):
+
+```fish
+openshell sandbox upload opencode-demo config/opencode.json /sandbox/
 ```
 
 The `$MLFLOW_ROUTE` and `$OC_TOKEN` variables were set in the "Before starting" step.
 
-Wait for `Ready`. Confirm with `openshell sandbox list`.
+Confirm with `openshell sandbox list`.
 
 **Talking point:** "The sandbox is running but completely isolated. No process inside can reach any external service."
 
@@ -153,7 +158,7 @@ Point out the `binaries` field: only the OpenCode binary gets network access. No
 ```bash
 openshell sandbox connect opencode-demo
 # Inside the sandbox:
-opencode
+NODE_PATH=/sandbox/node_modules opencode
 ```
 
 Test with a simple prompt:
@@ -163,6 +168,8 @@ Say hello and tell me the current date
 ```
 
 Claude responds via Vertex AI. The agent can reason, but it's the only external service it can reach.
+
+> **Note:** Always launch OpenCode with `NODE_PATH=/sandbox/node_modules` so the MLflow plugin is found in Act 5. Setting it early avoids restarting later.
 
 ---
 
@@ -218,12 +225,14 @@ What is AgentOps (RAG + Vector DB) team working on in Sprint 8 in RHAIENG in Jir
 # Add MLflow network access
 openshell pol set --policy policies/act5-mlflow.yaml opencode-demo --wait
 
-# Upload and extract MLflow plugin
+# Upload and extract MLflow plugin, clean up the tarball
 openshell sandbox upload opencode-demo /tmp/mlflow-node-modules.tar.gz /sandbox/
-openshell sandbox exec -n opencode-demo -- tar xzf /sandbox/mlflow-node-modules.tar.gz -C /sandbox/
+openshell sandbox exec -n opencode-demo -- bash -c 'cd /sandbox && tar xzf mlflow-node-modules.tar.gz && rm mlflow-node-modules.tar.gz'
 ```
 
-**Terminal 2 — exit OpenCode (Ctrl+C) and restart with NODE_PATH:**
+**Terminal 2 — exit OpenCode (Ctrl+C) and restart:**
+
+If you launched OpenCode with `NODE_PATH=/sandbox/node_modules` in Act 2, the plugin loads automatically. Otherwise restart with:
 
 ```bash
 NODE_PATH=/sandbox/node_modules opencode

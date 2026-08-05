@@ -19,5 +19,7 @@ openshell sandbox create \
   "${ENV_FLAGS[@]}" \
   --env "MLFLOW_TRACKING_URI=https://$MLFLOW_ROUTE" \
   --env "MLFLOW_TRACKING_TOKEN=$OC_TOKEN" \
-  --upload "$SCRIPT_DIR/config/opencode.json":/sandbox/opencode.json \
   --upload "$HOME/.config/gcloud/application_default_credentials.json":/sandbox/.gcloud/adc.json
+
+# Upload OpenCode config separately (--upload flag mishandles JSON file destinations)
+openshell sandbox upload opencode-demo "$SCRIPT_DIR/config/opencode.json" /sandbox/
