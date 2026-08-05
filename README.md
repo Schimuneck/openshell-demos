@@ -103,14 +103,7 @@ tar czf /tmp/mlflow-node-modules.tar.gz node_modules/
 **Say:** "We're creating a sandboxed environment for our AI coding agent. Everything starts locked down — no network egress at all."
 
 ```bash
-ENV_FLAGS=$(grep -v '^#' .env | grep '=' | sed 's/^/--env /' | tr '\n' ' ')
-eval openshell sandbox create \
-  --name opencode-demo \
-  $ENV_FLAGS \
-  --env "MLFLOW_TRACKING_URI=https://$MLFLOW_ROUTE" \
-  --env "MLFLOW_TRACKING_TOKEN=$(oc whoami -t)" \
-  --upload config/opencode.json:/sandbox/opencode.json \
-  --upload ~/.config/gcloud/application_default_credentials.json:/sandbox/.gcloud/adc.json
+./create-sandbox.sh
 ```
 
 Wait for `Ready`. Confirm with `openshell sandbox list`.
@@ -249,6 +242,7 @@ See [docs/troubleshooting.md](docs/troubleshooting.md).
 
 ```
 ├── README.md                  # This file (demo runbook)
+├── create-sandbox.sh          # Creates sandbox from .env (bash, fish-safe)
 ├── .env.example               # Template for credentials (committed)
 ├── .env                       # Your credentials (gitignored)
 ├── config/
