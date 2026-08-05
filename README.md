@@ -77,9 +77,17 @@ oc -n openshell port-forward svc/openshell 8080:8080 &
 ```bash
 export PATH="$HOME/bin:$PATH"
 export MLFLOW_ROUTE=$(oc -n redhat-ods-applications get route mlflow-api -o jsonpath='{.spec.host}')
+cd ~/projects/redhat/openshell-opencode-demo
 ```
 
-6. Build the MLflow plugin bundle (if not already done):
+6. Populate `.env` with your credentials (gitignored, never committed):
+
+```bash
+cp .env.example .env
+# Edit .env with your Jira API token and experiment ID
+```
+
+7. Build the MLflow plugin bundle (if not already done):
 
 ```bash
 cd /tmp && rm -rf mlflow-bundle && mkdir mlflow-bundle && cd mlflow-bundle
@@ -95,18 +103,12 @@ tar czf /tmp/mlflow-node-modules.tar.gz node_modules/
 **Say:** "We're creating a sandboxed environment for our AI coding agent. Everything starts locked down — no network egress at all."
 
 ```bash
-openshell sandbox create \
+ENV_FLAGS=$(grep -v '^#' .env | grep '=' | sed 's/^/--env /' | tr '\n' ' ')
+eval openshell sandbox create \
   --name opencode-demo \
-  --env GOOGLE_CLOUD_PROJECT=itpc-gcp-ai-eng-claude \
-  --env GOOGLE_APPLICATION_CREDENTIALS=/sandbox/.gcloud/adc.json \
-  --env JIRA_URL=https://redhat.atlassian.net \
-  --env JIRA_USERNAME=mschimun@redhat.com \
-  --env "JIRA_API_TOKEN=<your-jira-api-token>" \
+  $ENV_FLAGS \
   --env "MLFLOW_TRACKING_URI=https://$MLFLOW_ROUTE" \
   --env "MLFLOW_TRACKING_TOKEN=$(oc whoami -t)" \
-  --env MLFLOW_EXPERIMENT_ID=<experiment-id> \
-  --env MLFLOW_WORKSPACE=default \
-  --env MLFLOW_TRACKING_INSECURE_TLS=true \
   --upload config/opencode.json:/sandbox/opencode.json \
   --upload ~/.config/gcloud/application_default_credentials.json:/sandbox/.gcloud/adc.json
 ```
@@ -247,6 +249,8 @@ See [docs/troubleshooting.md](docs/troubleshooting.md).
 
 ```
 ├── README.md                  # This file (demo runbook)
+├── .env.example               # Template for credentials (committed)
+├── .env                       # Your credentials (gitignored)
 ├── config/
 │   └── opencode.json          # OpenCode configuration
 ├── policies/
