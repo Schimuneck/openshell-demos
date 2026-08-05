@@ -80,11 +80,12 @@ pkill -f "port-forward svc/openshell"
 oc -n openshell port-forward svc/openshell 8080:8080 &
 ```
 
-5. Set environment variables in Terminal 1:
+5. Set environment variables in Terminal 1 (fish syntax shown; for bash use `export` and `$()`):
 
-```bash
-export PATH="$HOME/bin:$PATH"
-export MLFLOW_ROUTE=$(oc -n redhat-ods-applications get route mlflow-api -o jsonpath='{.spec.host}')
+```fish
+set -x PATH $HOME/bin $PATH
+set MLFLOW_ROUTE (oc -n redhat-ods-applications get route mlflow-api -o jsonpath='{.spec.host}')
+set OC_TOKEN (oc whoami -t)
 cd ~/projects/redhat/openshell-opencode-demo
 ```
 
@@ -110,9 +111,24 @@ tar czf /tmp/mlflow-node-modules.tar.gz node_modules/
 
 **Say:** "We're creating a sandboxed environment for our AI coding agent. Everything starts locked down — no network egress at all."
 
-```bash
-./create-sandbox.sh
+```fish
+openshell sandbox create \
+  --name opencode-demo \
+  --env GOOGLE_CLOUD_PROJECT=itpc-gcp-ai-eng-claude \
+  --env GOOGLE_APPLICATION_CREDENTIALS=/sandbox/.gcloud/adc.json \
+  --env JIRA_URL=https://redhat.atlassian.net \
+  --env JIRA_USERNAME=mschimun@redhat.com \
+  --env "JIRA_API_TOKEN=<your-jira-api-token>" \
+  --env "MLFLOW_TRACKING_URI=https://$MLFLOW_ROUTE" \
+  --env "MLFLOW_TRACKING_TOKEN=$OC_TOKEN" \
+  --env MLFLOW_EXPERIMENT_ID=3 \
+  --env MLFLOW_WORKSPACE=default \
+  --env MLFLOW_TRACKING_INSECURE_TLS=true \
+  --upload (pwd)/config/opencode.json:/sandbox/opencode.json \
+  --upload ~/.config/gcloud/application_default_credentials.json:/sandbox/.gcloud/adc.json
 ```
+
+The `$MLFLOW_ROUTE` and `$OC_TOKEN` variables were set in the "Before starting" step.
 
 Wait for `Ready`. Confirm with `openshell sandbox list`.
 
