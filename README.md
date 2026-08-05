@@ -70,6 +70,14 @@ Total demo time: ~10 minutes.
 
 ```bash
 oc -n openshell port-forward svc/openshell 8080:8080 &
+openshell gateway list   # verify "openshift" is connected
+```
+
+If the port-forward dies mid-demo (commands hang or return "connection refused"), restart it:
+
+```bash
+pkill -f "port-forward svc/openshell"
+oc -n openshell port-forward svc/openshell 8080:8080 &
 ```
 
 5. Set environment variables in Terminal 1:
