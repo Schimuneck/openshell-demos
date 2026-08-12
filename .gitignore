@@ -1,3 +1,5 @@
 .DS_Store
 *.tar.gz
 .env
+opencode/.env
+openclaw/.env

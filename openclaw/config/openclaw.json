@@ -1,0 +1,68 @@
+{
+  "plugins": {
+    "entries": {
+      "anthropic-vertex": { "enabled": true },
+      "diagnostics-otel": { "enabled": true }
+    },
+    "allow": ["anthropic-vertex", "diagnostics-otel"]
+  },
+  "diagnostics": {
+    "enabled": true,
+    "otel": {
+      "enabled": true,
+      "traces": true,
+      "metrics": false,
+      "logs": false,
+      "protocol": "http/protobuf",
+      "flushIntervalMs": 5000,
+      "serviceName": "openclaw-sandbox"
+    }
+  },
+  "mcp": {
+    "servers": {
+      "jira": {
+        "command": "/sandbox/.local/bin/mcp-atlassian",
+        "args": [],
+        "enabled": true,
+        "env": {
+          "JIRA_URL": "https://redhat.atlassian.net",
+          "JIRA_USERNAME": "mschimun@redhat.com",
+          "JIRA_SSL_VERIFY": "false",
+          "REQUESTS_CA_BUNDLE": "",
+          "CURL_CA_BUNDLE": "",
+          "HTTP_PROXY": "http://10.200.0.1:3128",
+          "HTTPS_PROXY": "http://10.200.0.1:3128",
+          "http_proxy": "http://10.200.0.1:3128",
+          "https_proxy": "http://10.200.0.1:3128"
+        }
+      }
+    }
+  },
+  "gateway": {
+    "port": 19001,
+    "mode": "local",
+    "auth": {
+      "mode": "password",
+      "password": "demo"
+    },
+    "controlUi": {
+      "allowedOrigins": [
+        "https://openclaw-ui-openshell.apps.rosa.mschimun-dev.dwzv.p3.openshiftapps.com",
+        "http://localhost:19001",
+        "http://127.0.0.1:19001"
+      ]
+    },
+    "trustedProxies": [
+      "127.0.0.0/8",
+      "10.0.0.0/8",
+      "172.16.0.0/12"
+    ]
+  },
+  "agents": {
+    "defaults": {
+      "model": {
+        "primary": "anthropic-vertex/claude-opus-4-6"
+      }
+    }
+  }
+}
