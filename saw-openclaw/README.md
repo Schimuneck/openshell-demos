@@ -67,9 +67,9 @@ curl -sL "$VKC_URL" | tar xz -C /usr/local/bin virtctl
 
 ## Demo runbook
 
-Three-act progression: **deploy SAW VM → configure inference (workaround) → verify OpenClaw**, followed by a teardown.
+Four-act progression: **deploy SAW VM → configure inference (workaround) → verify OpenClaw → enable Control UI**, followed by a teardown.
 
-Total demo time: ~20 minutes (VM startup takes ~5 min).
+Total demo time: ~25 minutes (VM startup takes ~5 min).
 
 ---
 
@@ -257,6 +257,118 @@ virtctl -n "$SAW_NAMESPACE" ssh \
 
 ---
 
+### Act 4: Enable the OpenClaw Control UI
+
+**Say:** "OpenClaw has a built-in web dashboard — the Control UI. We can expose it through the SAW route so users can interact with the agent from a browser."
+
+The OpenClaw gateway needs additional egress endpoints during startup for plugin resolution and model registry checks:
+
+```bash
+virtctl -n "$SAW_NAMESPACE" ssh \
+  --identity-file="$SSH_KEY" \
+  "cloud-user@vm/$SAW_VM_NAME" \
+  --local-ssh-opts="-oStrictHostKeyChecking=no" \
+  --command="openshell policy update $SAW_SANDBOX_NAME \
+    --add-endpoint 'raw.githubusercontent.com:443:read-write:rest:enforce' \
+    --add-endpoint 'openrouter.ai:443:read-write:rest:enforce' \
+    --add-endpoint 'registry.npmjs.org:443:read-write:rest:enforce' \
+    --binary /usr/local/bin/node \
+    --binary /usr/bin/node \
+    --wait"
+```
+
+Configure the OpenClaw gateway with an auth token and the dashboard route as allowed origin, then start it:
+
+```bash
+DASHBOARD_ROUTE=$(oc get route ${SAW_VM_NAME}-dashboard -n "$SAW_NAMESPACE" \
+  -o jsonpath='{.spec.host}')
+OPENCLAW_TOKEN=$(openssl rand -hex 16)
+echo "Dashboard URL: https://$DASHBOARD_ROUTE"
+echo "Token: $OPENCLAW_TOKEN"
+
+virtctl -n "$SAW_NAMESPACE" ssh \
+  --identity-file="$SSH_KEY" \
+  "cloud-user@vm/$SAW_VM_NAME" \
+  --local-ssh-opts="-oStrictHostKeyChecking=no" \
+  --command="
+openshell sandbox exec -n $SAW_SANDBOX_NAME --no-tty -- \
+  node -e \"
+    const fs = require('fs');
+    const cfg = JSON.parse(fs.readFileSync('/sandbox/.openclaw/openclaw.json', 'utf8'));
+    if (!cfg.gateway) cfg.gateway = {};
+    if (!cfg.gateway.auth) cfg.gateway.auth = {};
+    cfg.gateway.auth.token = '$OPENCLAW_TOKEN';
+    if (!cfg.gateway.controlUi) cfg.gateway.controlUi = {};
+    cfg.gateway.controlUi.allowedOrigins = ['https://$DASHBOARD_ROUTE'];
+    if (!cfg.models) cfg.models = {};
+    cfg.models.mode = 'replace';
+    fs.writeFileSync('/sandbox/.openclaw/openclaw.json', JSON.stringify(cfg, null, 2));
+    console.log('Config updated');
+  \"
+
+openshell sandbox exec -n $SAW_SANDBOX_NAME --no-tty -- sh -c \
+  'nohup openclaw gateway run --bind lan --port 18789 > /tmp/openclaw-gateway.log 2>&1 &'
+"
+```
+
+Wait ~15 seconds for the gateway to start, then register the service with the OpenShell gateway and verify:
+
+```bash
+sleep 15
+virtctl -n "$SAW_NAMESPACE" ssh \
+  --identity-file="$SSH_KEY" \
+  "cloud-user@vm/$SAW_VM_NAME" \
+  --local-ssh-opts="-oStrictHostKeyChecking=no" \
+  --command="
+openshell service expose $SAW_SANDBOX_NAME 18789 openclaw-dashboard
+openshell sandbox exec -n $SAW_SANDBOX_NAME --no-tty -- \
+  tail -5 /tmp/openclaw-gateway.log
+"
+```
+
+You should see `[gateway] ready` in the log.
+
+The sandbox port 18789 is in a nested network namespace — the route can't reach it directly. Install nginx on the VM as a reverse proxy:
+
+```bash
+virtctl -n "$SAW_NAMESPACE" ssh \
+  --identity-file="$SSH_KEY" \
+  "cloud-user@vm/$SAW_VM_NAME" \
+  --local-ssh-opts="-oStrictHostKeyChecking=no" \
+  --command='
+sudo dnf install -y nginx 2>&1 | tail -3
+
+sudo tee /etc/nginx/conf.d/openclaw-gateway.conf > /dev/null << NGEOF
+server {
+    listen 18789;
+    server_name _;
+    location / {
+        proxy_pass https://127.0.0.1:17670;
+        proxy_set_header Host default--'"$SAW_SANDBOX_NAME"'--openclaw-dashboard.openshell.localhost;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+        proxy_ssl_verify off;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade \$http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_read_timeout 86400;
+        proxy_send_timeout 86400;
+    }
+}
+NGEOF
+
+sudo nginx -t && sudo nginx
+ss -tlnp | grep 18789
+'
+```
+
+Open `https://<dashboard-route>` in your browser and enter the gateway token when prompted.
+
+**Talking point:** "The Control UI is served from inside the sandbox, through the OpenShell gateway's service proxy, through an nginx reverse proxy on the VM, through the OpenShift route. Every layer enforces its own access controls."
+
+---
+
 ### Reset (after demo or before re-run)
 
 ```bash
@@ -305,9 +417,25 @@ virtctl -n "$SAW_NAMESPACE" ssh \
     default-route-openshift-image-registry.apps.\$(oc get ingress.config cluster -o jsonpath='{.spec.domain}')"
 ```
 
+### OpenClaw gateway needs extra egress endpoints
+
+The OpenClaw gateway tries to reach `raw.githubusercontent.com` and `openrouter.ai` on startup for plugin resolution and model registry checks. Without these egress rules, the gateway hangs at 100% CPU and never binds to its port.
+
+**Fix:** Add egress rules for `raw.githubusercontent.com:443`, `openrouter.ai:443`, and `registry.npmjs.org:443` before starting the gateway (included in Act 4).
+
+### Sandbox port 18789 not directly reachable from the VM
+
+The sandbox runs in a nested network namespace inside a Docker container on a bridge network. Port 18789 (OpenClaw Control UI) is not accessible from the VM host even though `ss -tlnp` inside the sandbox shows it listening on `0.0.0.0:18789`.
+
+**Fix:** Use `openshell service expose` to register the port, then run nginx on the VM as a reverse proxy that forwards through the OpenShell gateway's service proxy with the correct Host header (included in Act 4).
+
 ### TLS `UnknownIssuer` on sandbox auto-connect
 
 The supervisor inside the sandbox uses self-signed certificates. `openshell sandbox exec` may log a TLS warning on first connection. This does not prevent command execution.
+
+### OIDC token expiration
+
+Keycloak tokens expire after a short TTL. If `openshell sandbox list` returns "ExpiredSignature", re-run the OIDC authentication step from `configure-inference.sh` or manually get a fresh token from Keycloak.
 
 ## Repo contents
 
