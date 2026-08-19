@@ -1,0 +1,18 @@
+{
+  "providers": {
+    "google": {
+      "apiKey": "__GEMINI_API_KEY__",
+      "api": "google-generative-ai",
+      "models": [
+        {
+          "id": "gemini-3.6-flash",
+          "name": "Gemini 3.6 Flash",
+          "reasoning": true,
+          "input": ["text", "image"],
+          "contextWindow": 1048576,
+          "maxTokens": 65536
+        }
+      ]
+    }
+  }
+}
