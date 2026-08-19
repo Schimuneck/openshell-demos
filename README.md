@@ -10,6 +10,7 @@ Each demo runs in its own sandbox on the same OpenShell gateway — both can ope
 |------|-------|---------------|
 | [**OpenCode**](opencode/) | OpenCode (TypeScript coding agent) | Interactive terminal agent with Vertex AI, Jira MCP, MLflow tracing |
 | [**OpenClaw**](openclaw/) | OpenClaw (AI agent runtime with web UI) | Headless agent exec + browser-accessible Control UI via OpenShift OAuth |
+| [**SAW + OpenClaw**](saw-openclaw/) | OpenClaw on SAW | KubeVirt VM isolation, Gemini inference inside a sandboxed container |
 
 ## Shared infrastructure
 
@@ -53,11 +54,16 @@ oc -n openshell get pods # shows both sandbox pods + gateway + postgresql
 │   ├── docs/                  # Cluster prep, troubleshooting, concepts
 │   ├── create-sandbox.sh      # Script-based sandbox creation
 │   └── reset-demo.sh          # Reset for this demo
-└── openclaw/
-    ├── README.md              # OpenClaw demo runbook
-    ├── config/                # OpenClaw config + OTel preload
-    ├── policies/              # Network policies (3 acts)
-    ├── k8s/                   # OAuth proxy manifests
-    ├── start-gateway.sh       # Gateway startup (uploaded to sandbox)
-    └── reset-demo.sh          # Reset for this demo
+├── openclaw/
+│   ├── README.md              # OpenClaw demo runbook
+│   ├── config/                # OpenClaw config + OTel preload
+│   ├── policies/              # Network policies (3 acts)
+│   ├── k8s/                   # OAuth proxy manifests
+│   ├── start-gateway.sh       # Gateway startup (uploaded to sandbox)
+│   └── reset-demo.sh          # Reset for this demo
+└── saw-openclaw/
+    ├── README.md              # SAW demo runbook
+    ├── config/                # Gemini model config template
+    ├── configure-inference.sh # Manual inference setup workaround
+    └── reset-demo.sh          # Full SAW teardown
 ```
